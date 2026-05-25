@@ -51,6 +51,11 @@ try {
         echo json_encode(['error' => 'Acción no válida']);
     }
 } catch (Exception $e) {
-    echo json_encode(['error' => $e->getMessage()]);
+    // En producción, esto se guarda en el archivo de logs del servidor (error_log)
+    error_log("CRITICAL ERROR: " . $e->getMessage());
+    
+    // Al cliente (frontend) solo le devolvemos un mensaje genérico por seguridad
+    http_response_code(500);
+    echo json_encode(['error' => 'Ocurrió un error interno en el servidor. Inténtelo más tarde.']);
 }
 ?>
