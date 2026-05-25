@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión Vehicular y Deudas - Municipio</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; background-color: #f4f6f9; color: #333; }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
+        h2 { color: #2980b9; border-bottom: 2px solid #2980b9; padding-bottom: 8px; }
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .section { margin-bottom: 40px; }
+        form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #ecf0f1; padding: 15px; border-radius: 6px; }
+        input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        input, select { flex: 1; min-width: 150px; }
+        button { background-color: #27ae60; color: white; border: none; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button:hover { background-color: #219653; }
+        button.btn-delete { background-color: #c0392b; }
+        button.btn-delete:hover { background-color: #a93226; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #34495e; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Sistema de Control de Tránsito</h1>
+
+    <div class="section">
+        <h2>Gestión de Vehículos</h2>
+        <form id="formVehiculo">
+            <input type="text" id="patente" placeholder="Patente (Ej: BBCC11)" required maxlength="10">
+            <input type="text" id="modelo" placeholder="Modelo (Ej: Toyota Yaris)" required>
+            <button type="submit">Agregar Vehículo</button>
+        </form>
+        
+        <table id="tablaVehiculos">
+            <thead>
+                <tr>
+                    <th>Patente</th>
+                    <th>Modelo</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <hr>
+
+    <div class="section">
+        <h2>Registro de Deudas (Multas)</h2>
+        <form id="formDeuda">
+            <select id="selectPatente" required>
+                <option value="">Seleccione Patente...</option>
+            </select>
+            <input type="number" id="monto" placeholder="Monto ($)" required min="1">
+            <input type="text" id="motivo" placeholder="Motivo de la multa" required>
+            <input type="date" id="fecha_emision" required>
+            <button type="submit" style="background-color: #e67e22;">Registrar Deuda</button>
+        </form>
+        
+        <table id="tablaDeudas">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Patente</th>
+                    <th>Monto</th>
+                    <th>Motivo</th>
+                    <th>Fecha Emisión</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const API_URL = '../backend/api.php';
+
+    // Cargar todo al inicializar la página
+    document.addEventListener('DOMContentLoaded', () => {
+        loadVehiculos();
+        loadDeudas();
+    });
+
+    // --- LÓGICA DE VEHÍCULOS ---
+    function loadVehiculos() {
+        fetch(`${API_URL}?action=get_vehiculos`)
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.querySelector('#tablaVehiculos tbody');
+                const select = document.getElementById('selectPatente');
+                
+                tbody.innerHTML = '';
+                // Limpiar selector de patentes excepto la opción por defecto
+                select.innerHTML = '<option value="">Seleccione Patente...</option>';
+
+                data.forEach(v => {
+                    // Renderizar en la tabla
+                    tbody.innerHTML += `<tr>
+                        <td><strong>${v.patente}</strong></td>
+                        <td>${v.modelo}</td>
+                        <td><button class="btn-delete" onclick="deleteVehiculo('${v.patente}')">Eliminar</button></td>
+                    </tr>`;
+
+                    // Agregar al combobox del formulario de deudas
+                    select.innerHTML += `<option value="${v.patente}">${v.patente} (${v.modelo})</option>`;
+                });
+            })
+            .catch(err => console.error("Error cargando vehículos:", err));
+    }
+
+    document.getElementById('formVehiculo').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append('patente', document.getElementById('patente').value.toUpperCase().trim());
+        formData.append('modelo', document.getElementById('modelo').value.trim());
+
+        fetch(`${API_URL}?action=create_vehiculo`, { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(res => {
+                if(res.error) alert("Error: " + res.error);
+                else {
+                    loadVehiculos();
+                    this.reset();
+                }
+            });
+    });
+
+    function deleteVehiculo(patente) {
+        if (!confirm(`¿Seguro que deseas eliminar el vehículo ${patente}? Esto borrará también todas sus deudas asociadas.`)) return;
+        
+        const formData = new FormData();
+        formData.append('patente', patente);
+
+        fetch(`${API_URL}?action=delete_vehiculo`, { method: 'POST', body: formData })
+            .then(() => {
+                loadVehiculos();
+                loadDeudas(); // Recargamos deudas ya que la BD tiene ON DELETE CASCADE
+            });
+    }
+
+    // --- LÓGICA DE DEUDAS ---
+    function loadDeudas() {
+        fetch(`${API_URL}?action=get_deudas`)
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.querySelector('#tablaDeudas tbody');
+                tbody.innerHTML = '';
+                
+                data.forEach(d => {
+                    tbody.innerHTML += `<tr>
+                        <td>${d.id}</td>
+                        <td><span style="background:#f1c40f; padding:2px 6px; border-radius:4px; font-weight:bold;">${d.patente}</span></td>
+                        <td>$${parseInt(d.monto).toLocaleString('es-CL')}</td>
+                        <td>${d.motivo}</td>
+                        <td>${d.fecha_emision}</td>
+                    </tr>`;
+                });
+            })
+            .catch(err => console.error("Error cargando deudas:", err));
+    }
+
+    document.getElementById('formDeuda').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append('patente', document.getElementById('selectPatente').value);
+        formData.append('monto', document.getElementById('monto').value);
+        formData.append('motivo', document.getElementById('motivo').value.trim());
+        formData.append('fecha_emision', document.getElementById('fecha_emision').value);
+
+        fetch(`${API_URL}?action=create_deuda`, { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(res => {
+                if(res.error) alert("Error: " + res.error);
+                else {
+                    loadDeudas();
+                    this.reset();
+                }
+            });
+    });
+</script>
+
+</body>
+</html>
