@@ -87,31 +87,52 @@
     });
 
     // --- LÓGICA DE VEHÍCULOS ---
-    function loadVehiculos() {
-        fetch(`${API_URL}?action=get_vehiculos`)
-            .then(res => res.json())
-            .then(data => {
-                const tbody = document.querySelector('#tablaVehiculos tbody');
-                const select = document.getElementById('selectPatente');
+function loadVehiculos() {
+    fetch(`${API_URL}?action=get_vehiculos`)
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.querySelector('#tablaVehiculos tbody');
+            const select = document.getElementById('selectPatente');
+            
+            // Limpiamos los contenedores de forma segura
+            tbody.innerHTML = '';
+            select.innerHTML = '<option value="">Seleccione Patente...</option>';
+
+            data.forEach(v => {
+                // 1. Crear nodos del DOM de forma segura
+                const tr = document.createElement('tr');
                 
-                tbody.innerHTML = '';
-                // Limpiar selector de patentes excepto la opción por defecto
-                select.innerHTML = '<option value="">Seleccione Patente...</option>';
+                const tdPatente = document.createElement('td');
+                const strong = document.createElement('strong');
+                strong.textContent = v.patente; // Inyección XSS mitigada aquí
+                tdPatente.appendChild(strong);
+                
+                const tdModelo = document.createElement('td');
+                tdModelo.textContent = v.modelo; // Inyección XSS mitigada aquí
+                
+                const tdAccion = document.createElement('td');
+                const btn = document.createElement('button');
+                btn.className = 'btn-delete';
+                btn.textContent = 'Eliminar';
+                // Usamos una clausura segura en lugar de pasar strings a un atributo onclick HTML
+                btn.onclick = () => deleteVehiculo(v.patente); 
+                tdAccion.appendChild(btn);
+                
+                // Ensamblar la fila
+                tr.appendChild(tdPatente);
+                tr.appendChild(tdModelo);
+                tr.appendChild(tdAccion);
+                tbody.appendChild(tr);
 
-                data.forEach(v => {
-                    // Renderizar en la tabla
-                    tbody.innerHTML += `<tr>
-                        <td><strong>${v.patente}</strong></td>
-                        <td>${v.modelo}</td>
-                        <td><button class="btn-delete" onclick="deleteVehiculo('${v.patente}')">Eliminar</button></td>
-                    </tr>`;
-
-                    // Agregar al combobox del formulario de deudas
-                    select.innerHTML += `<option value="${v.patente}">${v.patente} (${v.modelo})</option>`;
-                });
-            })
-            .catch(err => console.error("Error cargando vehículos:", err));
-    }
+                // 2. Poblar el select del formulario de deudas de forma segura
+                const option = document.createElement('option');
+                option.value = v.patente;
+                option.textContent = `${v.patente} (${v.modelo})`;
+                select.appendChild(option);
+            });
+        })
+        .catch(err => console.error("Error cargando vehículos:", err));
+}
 
     document.getElementById('formVehiculo').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -144,25 +165,45 @@
     }
 
     // --- LÓGICA DE DEUDAS ---
-    function loadDeudas() {
-        fetch(`${API_URL}?action=get_deudas`)
-            .then(res => res.json())
-            .then(data => {
-                const tbody = document.querySelector('#tablaDeudas tbody');
-                tbody.innerHTML = '';
+function loadDeudas() {
+    fetch(`${API_URL}?action=get_deudas`)
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.querySelector('#tablaDeudas tbody');
+            tbody.innerHTML = '';
+            
+            data.forEach(d => {
+                const tr = document.createElement('tr');
                 
-                data.forEach(d => {
-                    tbody.innerHTML += `<tr>
-                        <td>${d.id}</td>
-                        <td><span style="background:#f1c40f; padding:2px 6px; border-radius:4px; font-weight:bold;">${d.patente}</span></td>
-                        <td>$${parseInt(d.monto).toLocaleString('es-CL')}</td>
-                        <td>${d.motivo}</td>
-                        <td>${d.fecha_emision}</td>
-                    </tr>`;
-                });
-            })
-            .catch(err => console.error("Error cargando deudas:", err));
-    }
+                const tdId = document.createElement('td');
+                tdId.textContent = d.id;
+                
+                const tdPatente = document.createElement('td');
+                const span = document.createElement('span');
+                span.style.cssText = "background:#f1c40f; padding:2px 6px; border-radius:4px; font-weight:bold;";
+                span.textContent = d.patente;
+                tdPatente.appendChild(span);
+                
+                const tdMonto = document.createElement('td');
+                tdMonto.textContent = `$${parseInt(d.monto).toLocaleString('es-CL')}`;
+                
+                const tdMotivo = document.createElement('td');
+                tdMotivo.textContent = d.motivo; // Mitiga XSS si se ingresaron scripts en la descripción de la multa
+                
+                const tdFecha = document.createElement('td');
+                tdFecha.textContent = d.fecha_emision;
+                
+                // Ensamblar la fila
+                tr.appendChild(tdId);
+                tr.appendChild(tdPatente);
+                tr.appendChild(tdMonto);
+                tr.appendChild(tdMotivo);
+                tr.appendChild(tdFecha);
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(err => console.error("Error cargando deudas:", err));
+}
 
     document.getElementById('formDeuda').addEventListener('submit', function(e) {
         e.preventDefault();
