@@ -12,9 +12,20 @@ try {
     } 
     
     elseif ($action === 'create_vehiculo') {
-        // Las variables se pasan a execute() para evitar Inyección SQL nativamente
+        // Limpiamos espacios y pasamos a mayúsculas
+        $patente = strtoupper(trim($_POST['patente'] ?? ''));
+        $modelo = trim($_POST['modelo'] ?? '');
+
+        // Validación patentes: El último carácter debe ser un número entre 0 y 9
+        // El símbolo '$' indica el final de la cadena de texto
+        if (!preg_match('/[0-9]$/', $patente)) {
+            echo json_encode(['error' => 'La patente es inválida. Debe terminar estrictamente en un número (0-9).']);
+            exit; // Detiene la ejecución inmediatamente para no insertar en la BD
+        }
+
+        // Si pasa la validación, procedemos con la inserción segura
         $stmt = $pdo->prepare("INSERT INTO vehiculos (patente, modelo) VALUES (?, ?)");
-        $stmt->execute([$_POST['patente'], $_POST['modelo']]);
+        $stmt->execute([$patente, $modelo]);
         echo json_encode(['success' => true]);
     }
     
