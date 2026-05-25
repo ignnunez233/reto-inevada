@@ -1,6 +1,21 @@
 <?php
 declare(strict_types=1);
 require 'db.php';
+/**
+ * Sanitiza de manera recursiva un arreglo de datos contra ataques XSS.
+ * Convierte caracteres especiales en entidades HTML seguras.
+ */
+function sanitize_xss(array $data): array {
+    foreach ($data as $key => $value) {
+        if (is_array($value)) {
+            $data[$key] = sanitize_xss($value);
+        } elseif (is_string($value)) {
+            // ENT_QUOTES asegura que se escapen comillas simples y dobles
+            $data[$key] = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+        }
+    }
+    return $data;
+}
 header("Content-Type: application/json");
 
 $action = $_GET['action'] ?? '';
