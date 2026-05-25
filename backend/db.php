@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 $host = '127.0.0.1';
 $db   = 'control_transito';
 $user = 'root'; // Usuario por defecto en entornos locales como XAMPP
