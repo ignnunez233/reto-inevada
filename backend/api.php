@@ -24,8 +24,10 @@ try {
     // --- CRUD VEHÍCULOS ---
     if ($action === 'get_vehiculos') {
         $stmt = $pdo->query("SELECT * FROM vehiculos");
-        echo json_encode($stmt->fetchAll());
-    } 
+        $resultados = $stmt->fetchAll();
+        // Aplicamos sanitización antes de codificar en JSON
+        echo json_encode(sanitize_xss($resultados));
+    }
     
     elseif ($action === 'create_vehiculo') {
         // Limpiamos espacios y pasamos a mayúsculas
@@ -54,7 +56,9 @@ try {
     // --- CRUD DEUDAS ---
     elseif ($action === 'get_deudas') {
         $stmt = $pdo->query("SELECT * FROM deudas");
-        echo json_encode($stmt->fetchAll());
+        $resultados = $stmt->fetchAll();
+        // Aplicamos sanitización antes de codificar en JSON
+        echo json_encode(sanitize_xss($resultados));
     }
 
     elseif ($action === 'create_deuda') {
